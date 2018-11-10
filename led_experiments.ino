@@ -1,5 +1,4 @@
 #include <SoftwareSerial.h>
-SoftwareSerial XBee(2, 3); // Arduino RX, TX (XBee Dout, Din)
 
 #include <FastLED.h>
 
@@ -24,10 +23,6 @@ const int ledTestPin4 = 10;
 
 void setup()
 {
-  // Initialize XBee Software Serial port. Make sure the baud
-  // rate matches your XBee setting (9600 is default).
-  XBee.begin(9600); 
-//  printMenu(); // Print a helpful menu:
 
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
     FastLED.setBrightness(  BRIGHTNESS );
@@ -39,99 +34,39 @@ void setup()
     digitalWrite(ledTestPin2, LOW);
     digitalWrite(ledTestPin3, LOW);
     digitalWrite(ledTestPin4, LOW);      
-    colorMode1();  
+    
+    // fill the entire array with blue.
+    fill_solid(leds, NUM_LEDS, CRGB::Blue);
+    FastLED.show();
+
+    FastLED.delay(1000);
+
+    leds[0] = CRGB::Red;
+    
+    FastLED.delay(1000);
+
 }
 
+#define LOOP_TIME 1000
 void loop()
 {
-  // In loop() we continously check to see if a command has been
-  //  received.
-  if (XBee.available())
-  {
-    char c = XBee.read();
+    static int current_led=0;
+    int next_led;
+    CRGB temp;
 
-    if (c == '1') {
-      digitalWrite(ledTestPin1, HIGH);
-      digitalWrite(ledTestPin2, LOW); 
-      digitalWrite(ledTestPin3, LOW); 
-      digitalWrite(ledTestPin4, LOW); 
-      colorMode1(); // Write analog pin
-    
-    }
-    
-    else if (c == '2'){
-      digitalWrite(ledTestPin2, HIGH);
-      digitalWrite(ledTestPin1, LOW); 
-      digitalWrite(ledTestPin3, LOW); 
-      digitalWrite(ledTestPin4, LOW); 
-      colorMode2(); // Write digital pin
-     
-    }
- 
-    else if (c == '3'){
-      digitalWrite(ledTestPin3, HIGH);
-      digitalWrite(ledTestPin1, LOW); 
-      digitalWrite(ledTestPin2, LOW); 
-      digitalWrite(ledTestPin4, LOW); 
-      colorMode3();  // Read digital pin
-     
-    }
+    // This loop is going to walk the an LED around the circle.  
+    next_led = current_led + 1;
+    if (next_led == NUM_LEDS) next_led = 0;
 
-    else if (c == '4'){
-      digitalWrite(ledTestPin4, HIGH);
-      digitalWrite(ledTestPin1, LOW); 
-      digitalWrite(ledTestPin2, LOW); 
-      digitalWrite(ledTestPin3, LOW); 
-      colorMode4();  // Read analog pin
-    
-    }
+    temp = leds[next_led];
+    leds[next_led] = leds[current_led];
+    leds[current_led] = temp;
 
-    else if (c == '5'){
-      digitalWrite(ledTestPin1, HIGH); 
-      digitalWrite(ledTestPin2, HIGH); 
-      digitalWrite(ledTestPin3, HIGH); 
-      digitalWrite(ledTestPin4, HIGH);
-      colorMode5();  // Read analog pin
-    }
-
-    else if (c == '0'){
-      digitalWrite(ledTestPin4, LOW);
-      digitalWrite(ledTestPin1, LOW); 
-      digitalWrite(ledTestPin2, LOW); 
-      digitalWrite(ledTestPin3, LOW); 
-      BlackPalette();  // Read analog pin
-    }  
-
-    else if (c == 'A')
-      UPDATES_PER_SECOND = 10;
-     else if (c == 'B')
-      UPDATES_PER_SECOND = 20; 
-    else if (c == 'C')
-      UPDATES_PER_SECOND = 30;
-     else if (c == 'D')
-      UPDATES_PER_SECOND = 40; 
-    else if (c == 'E')
-      UPDATES_PER_SECOND = 50;
-     else if (c == 'F')
-      UPDATES_PER_SECOND = 60; 
-    else if (c == 'G')
-      UPDATES_PER_SECOND = 70;
-     else if (c == 'H')
-      UPDATES_PER_SECOND = 80; 
-    else if (c == 'I')
-      UPDATES_PER_SECOND = 90;
-     else if (c == 'J')
-      UPDATES_PER_SECOND = 100;                   
-  }
-    
-    static uint8_t startIndex = 0;
-    startIndex = startIndex + 1; /* motion speed */
-    
-    FillLEDsFromPaletteColors( startIndex);
+    current_led++;
+    if (current_led == NUM_LEDS) current_led = 0;
     
     FastLED.show();
-    FastLED.delay(1000 / UPDATES_PER_SECOND);
-
+    FastLED.delay(LOOP_TIME);
 }
 
 void colorMode1() {
@@ -247,5 +182,3 @@ const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM =
     CRGB::Black,
     CRGB::Black
 };
-
-
