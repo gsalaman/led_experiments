@@ -35,7 +35,7 @@ void setup()
 
 }
 
-#define LOOP_TIME      1000
+#define LOOP_TIME      100
 #define NUM_INNER_LEDS 16
 void loop()
 {
@@ -53,15 +53,18 @@ void loop()
     leds[current_inner_led] = temp;
 
     current_inner_led = next_inner_led;
-    
+
+ 
     next_outer_led = current_outer_led + 1;
-    if (next_outer_led == NUM_LEDS) next_inner_led = NUM_INNER_LEDS;
+    if (next_outer_led == NUM_LEDS) next_outer_led = NUM_INNER_LEDS;
 
     temp = leds[next_outer_led];
     leds[next_outer_led] = leds[current_outer_led];
     leds[current_outer_led] = temp;
 
+
     current_outer_led = next_outer_led;
+
     
     FastLED.show();
     FastLED.delay(LOOP_TIME);
