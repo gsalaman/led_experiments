@@ -1,6 +1,8 @@
 /*===========================================================
- * First test sketch.  Use leds array to set circles to blue, then
- * walk a red light around.  
+ * Next test sketch.  Bounce two leds around each circle.    
+ * Same speed, and since the arrays are set up with 
+ * Inner as counter-clockwise, outer clockwise, we'll
+ * use that as our default direction.  
  */
 
 #include <SoftwareSerial.h>
@@ -27,28 +29,39 @@ void setup()
     FastLED.delay(1000);
 
     leds[0] = CRGB::Red;
+    leds[16] = CRGB::Red;
     
     FastLED.delay(1000);
 
 }
 
-#define LOOP_TIME 1000
+#define LOOP_TIME      1000
+#define NUM_INNER_LEDS 16
 void loop()
 {
-    static int current_led=0;
-    int next_led;
+    static int current_inner_led = 0;    // Inner leds go from 0 to 15
+    static int current_outer_led = NUM_INNER_LEDS;   // outer leds go from 16 to 39
+    int next_inner_led;
+    int next_outer_led;
     CRGB temp;
 
-    // This loop is going to walk the an LED around the circle.  
-    next_led = current_led + 1;
-    if (next_led == NUM_LEDS) next_led = 0;
+    next_inner_led = current_inner_led + 1;
+    if (next_inner_led == NUM_INNER_LEDS) next_inner_led = 0;
 
-    temp = leds[next_led];
-    leds[next_led] = leds[current_led];
-    leds[current_led] = temp;
+    temp = leds[next_inner_led];
+    leds[next_inner_led] = leds[current_inner_led];
+    leds[current_inner_led] = temp;
 
-    current_led++;
-    if (current_led == NUM_LEDS) current_led = 0;
+    current_inner_led = next_inner_led;
+    
+    next_outer_led = current_outer_led + 1;
+    if (next_outer_led == NUM_LEDS) next_inner_led = NUM_INNER_LEDS;
+
+    temp = leds[next_outer_led];
+    leds[next_outer_led] = leds[current_outer_led];
+    leds[current_outer_led] = temp;
+
+    current_outer_led = next_outer_led;
     
     FastLED.show();
     FastLED.delay(LOOP_TIME);
