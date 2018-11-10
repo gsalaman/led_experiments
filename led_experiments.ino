@@ -1,5 +1,9 @@
-#include <SoftwareSerial.h>
+/*===========================================================
+ * First test sketch.  Use leds array to set circles to blue, then
+ * walk a red light around.  
+ */
 
+#include <SoftwareSerial.h>
 #include <FastLED.h>
 
 #define LED_PIN    6
