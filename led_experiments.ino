@@ -292,6 +292,7 @@ void make_outer_counter_clockwise_streak(int streak_size, CRGB background, CRGB 
 
 void setup()
 {
+    int i;
 
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
     FastLED.setBrightness(  BRIGHTNESS );
@@ -308,16 +309,35 @@ void setup()
 
     CRGB red = CRGB::Red;
     CRGB blue = CRGB::Blue;
-    make_outer_counter_clockwise_streak(10, blue, red);
-    make_inner_counter_clockwise_streak(8, blue, red);
+    make_outer_clockwise_streak(10, blue, red);
+    make_inner_clockwise_streak(8, blue, red);
+
+    // want to align the inner and outer streaks
+    for (i = 0; i < 6; i++) rotate_inner_clockwise();
 }
 
-#define LOOP_TIME 100
+
+
+#define LOOP_TIME 30
 void loop()
 {
-    rotate_inner_counter_clockwise();
-    rotate_outer_counter_clockwise();
+    static int phase = 0;
+    
+    // gonna start with an easier sync: inner has 2 updates for every 3 outer.  Common denominator:  6.  
+    // Think of the following ticks or phases:
+    // 0 - rotate both
+    // 1 - rotate neither
+    // 2 - rotate outer
+    // 3 - rotate inner
+    // 4 - rotate outer
+    // 5 - rotate neither
 
+    if (phase % 3 == 0) rotate_inner_clockwise();
+    if (phase % 2 == 0) rotate_outer_clockwise();
+    phase = phase + 1;
+    phase = phase % 6;
+    
+    
     FastLED.show();
     FastLED.delay(LOOP_TIME);
 
