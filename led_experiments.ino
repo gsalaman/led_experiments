@@ -46,6 +46,7 @@ const TProgmemPalette16 my_palette PROGMEM =
 
 };
 
+int outer_tick_ref[NUM_OUTER];
 
 /*===============================================================================
  * Function:  fill_all
@@ -290,9 +291,47 @@ void make_outer_counter_clockwise_streak(int streak_size, CRGB background, CRGB 
   fill_gradient_RGB(&(leds[OUTER_START]), streak_size, head, background); 
 }
 
+/*===============================================================================
+ * Function:  setup_outer_tick_ref
+ */
+void setup_outer_tick_ref( void )
+{
+    int i;
+
+    for (i = 1; i <= NUM_OUTER; i++)
+    {
+      outer_tick_ref[i] = 1000 * i / 24;
+
+      //Serial.println(outer_tick_ref[i]);
+    } 
+}
+
+/*===============================================================================
+ * Function:  get_outer_phase
+ */
+int get_outer_phase( int ms )
+{
+  int phase = 0;
+  
+  //make sure ms is 0-999
+  ms = ms % 1000;
+
+  while (outer_tick_ref[phase] <= ms)
+  {
+     phase++;
+  }
+
+  phase--;
+  
+  return phase;
+  
+}
+
 void setup()
 {
 
+    Serial.begin(9600);
+    
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
     FastLED.setBrightness(  BRIGHTNESS );
     
@@ -308,41 +347,36 @@ void setup()
 
     CRGB red = CRGB::Red;
     CRGB blue = CRGB::Blue;
-    make_outer_clockwise_streak(10, blue, red);
+    make_outer_clockwise_streak(4, blue, red);
     
     // marker for time keeping
     fill_inner(CRGB::Blue);
     leds[0] = CRGB::Red;
+
+    setup_outer_tick_ref();
+
 }
 
-#define LOOP_TIME 100
-#define OUTER_TICK_TIME 42
+
 void loop()
 {
-    static unsigned long last_outer_update=0;
-    unsigned long current_time;
-    int tick_time;
-    static int outer_phase = 0;
-    int outer_tick_time[] = {42, 42, 41};
-    
-    // spin outer once per second.  Use millis to time it.
-    // However, with 24 leds, each tick is 41 2/3 milliseconds.  
-    // How to deal with it?  We'll tick 42 seconds, then 42, then 41.  Repeat. 
-    // Outer phase will tell us when we need to adjust.
-    
-    current_time = millis();
+  static int outer_phase = 0;
+  int desired_phase;
+  unsigned long current_time;
+  int current_ms;  // ms remainder of current time.
 
-    if (current_time > last_outer_update + outer_tick_time[outer_phase])
-    {
-        // update the leds
-        rotate_outer_clockwise();
-        FastLED.show();
+  current_time = millis();
+  current_ms = current_time % 1000;
+  
+  desired_phase = get_outer_phase(current_ms);
+  while (outer_phase != desired_phase)
+  {
+    rotate_outer_clockwise();
+    outer_phase++;
+    outer_phase = outer_phase % NUM_OUTER; 
+  }
+  
+  FastLED.show();
+  
 
-        // now update for our NEXT tick.
-        last_outer_update = current_time;
-        outer_phase = outer_phase + 1;
-        outer_phase = outer_phase % 3;
-    }
-
-    // starting by trying with no delays.  
 }
