@@ -21,6 +21,15 @@ CRGB leds[NUM_LEDS];
 #define LAST_INNER (NUM_INNER - 1)
 #define LAST_OUTER (NUM_LEDS - 1)
 
+
+/*===============================================================================
+ * Function:  fill_all
+ */
+void fill_all(CRGB color)
+{
+    fill_solid(leds, NUM_LEDS, color);
+}
+
 /*===============================================================================
  * Function:  fill_inner
  */
@@ -140,7 +149,7 @@ void setup()
     FastLED.setBrightness(  BRIGHTNESS );
     
     // fill the entire array with blue.
-    fill_solid(leds, NUM_LEDS, CRGB::Blue);
+    fill_all(CRGB::Blue);
     FastLED.show();
 
     FastLED.delay(1000);
