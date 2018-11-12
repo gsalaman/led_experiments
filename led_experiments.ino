@@ -308,17 +308,41 @@ void setup()
 
     CRGB red = CRGB::Red;
     CRGB blue = CRGB::Blue;
-    make_outer_counter_clockwise_streak(10, blue, red);
-    make_inner_counter_clockwise_streak(8, blue, red);
+    make_outer_clockwise_streak(10, blue, red);
+    
+    // marker for time keeping
+    fill_inner(CRGB::Blue);
+    leds[0] = CRGB::Red;
 }
 
 #define LOOP_TIME 100
+#define OUTER_TICK_TIME 42
 void loop()
 {
-    rotate_inner_counter_clockwise();
-    rotate_outer_counter_clockwise();
+    static unsigned long last_outer_update=0;
+    unsigned long current_time;
+    int tick_time;
+    static int outer_phase = 0;
+    int outer_tick_time[] = {42, 42, 41};
+    
+    // spin outer once per second.  Use millis to time it.
+    // However, with 24 leds, each tick is 41 2/3 milliseconds.  
+    // How to deal with it?  We'll tick 42 seconds, then 42, then 41.  Repeat. 
+    // Outer phase will tell us when we need to adjust.
+    
+    current_time = millis();
 
-    FastLED.show();
-    FastLED.delay(LOOP_TIME);
+    if (current_time > last_outer_update + outer_tick_time[outer_phase])
+    {
+        // update the leds
+        rotate_outer_clockwise();
+        FastLED.show();
 
+        // now update for our NEXT tick.
+        last_outer_update = current_time;
+        outer_phase = outer_phase + 1;
+        outer_phase = outer_phase % 3;
+    }
+
+    // starting by trying with no delays.  
 }
