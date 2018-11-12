@@ -38,6 +38,14 @@ void fill_outer(CRGB color)
 }
 
 /*===============================================================================
+ * Function:  fill_all
+ */
+void fill_all(CRGB color)
+{
+    fill_solid(leds, NUM_LEDS, color);
+}
+
+/*===============================================================================
  * Function:  rotate_down_helper
  *
  * Since the LEDs can be wired arbitrarily (is increasing the index going clockwise
@@ -136,6 +144,8 @@ void rotate_outer_counter_clockwise( void )
 void setup()
 {
 
+    Serial.begin(9600);
+
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
     FastLED.setBrightness(  BRIGHTNESS );
     
@@ -150,15 +160,32 @@ void setup()
     
     FastLED.delay(1000);
 
+    fill_inner(CRGB::Black);
+  
 }
 
 #define LOOP_TIME 100
+#define PALETTE_JUMP 5
 void loop()
 {
+  static int led_index=OUTER_START;
+  static uint8_t color_index = 0;
+  
+  
+  CRGBPalette16 current_palette;
 
-    rotate_inner_clockwise();
-    rotate_outer_clockwise();
-    
-    FastLED.show();
-    FastLED.delay(LOOP_TIME);
+  //current_palette = LavaColors_p;
+  //current_palette = CloudColors_p;
+  //current_palette = ForestColors_p;
+  current_palette = RainbowColors_p;
+
+  leds[led_index] = ColorFromPalette(current_palette, color_index, BRIGHTNESS, LINEARBLEND);
+  FastLED.show();
+  FastLED.delay(LOOP_TIME);
+
+  led_index++;
+  if (led_index == NUM_LEDS) led_index = OUTER_START;
+  
+  color_index = color_index + PALETTE_JUMP;  // gonna use the auto 255 rollover here...no bounds checking.
+  
 }
