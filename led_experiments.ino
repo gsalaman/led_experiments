@@ -236,6 +236,60 @@ void make_outer_bump(int bump_size, CRGB background, CRGB bump)
   make_bump(28, bump_size, background, bump);
 }
 
+/*===============================================================================
+ * Function:  make_inner_clockwise_streak
+ */
+void make_inner_clockwise_streak(int streak_size, CRGB background, CRGB head)
+{
+  if (streak_size > NUM_INNER) streak_size = NUM_INNER;
+
+  fill_inner(background);
+
+  // inner indexes go counter-clockwise.  
+  // we're gonna put the head at index 0, and then fade as array indexes increase
+  fill_gradient_RGB(leds, streak_size, head, background); 
+}
+
+/*===============================================================================
+ * Function:  make_inner_counter_clockwise_streak
+ */
+void make_inner_counter_clockwise_streak(int streak_size, CRGB background, CRGB head)
+{
+  if (streak_size > NUM_INNER) streak_size = NUM_INNER;
+
+  fill_inner(background);
+
+  // since inner indexes go counter-clockwise, we need to start at the tail, and build to the head
+  fill_gradient_RGB(leds, streak_size, background, head); 
+}
+
+/*===============================================================================
+ * Function:  make_outer_clockwise_streak
+ */
+void make_outer_clockwise_streak(int streak_size, CRGB background, CRGB head)
+{
+  if (streak_size > NUM_OUTER) streak_size = NUM_OUTER;
+
+  fill_outer(background);
+  
+  // since outer indexes go counter-clockwise, we need to start at the tail, and build to the head
+  fill_gradient_RGB(&(leds[OUTER_START]), streak_size, background, head); 
+
+}
+
+/*===============================================================================
+ * Function:  make_outer_counter_clockwise_streak
+ */
+void make_outer_counter_clockwise_streak(int streak_size, CRGB background, CRGB head)
+{
+  if (streak_size > NUM_OUTER) streak_size = NUM_OUTER;
+
+  fill_outer(background);
+  
+  // since outer indexes go counter-clockwise, we need to start at the head, and build to the tail
+  fill_gradient_RGB(&(leds[OUTER_START]), streak_size, head, background); 
+}
+
 void setup()
 {
 
@@ -254,17 +308,15 @@ void setup()
 
     CRGB red = CRGB::Red;
     CRGB blue = CRGB::Blue;
-    make_outer_bump(4, blue, red);
-    make_inner_bump(3, blue, red);
-
-    
+    make_outer_counter_clockwise_streak(10, blue, red);
+    make_inner_counter_clockwise_streak(8, blue, red);
 }
 
 #define LOOP_TIME 100
 void loop()
 {
-    rotate_inner_clockwise();
-    rotate_outer_clockwise();
+    rotate_inner_counter_clockwise();
+    rotate_outer_counter_clockwise();
 
     FastLED.show();
     FastLED.delay(LOOP_TIME);
