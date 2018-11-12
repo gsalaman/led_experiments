@@ -166,26 +166,46 @@ void setup()
 
 #define LOOP_TIME 100
 #define PALETTE_JUMP 5
+uint8_t brightness=120;
+
 void loop()
 {
   static int led_index=OUTER_START;
   static uint8_t color_index = 0;
+  static bool inner_toggle=false;
+  uint8_t next_color_index;
   
   
   CRGBPalette16 current_palette;
 
   //current_palette = LavaColors_p;
   //current_palette = CloudColors_p;
-  //current_palette = ForestColors_p;
-  current_palette = RainbowColors_p;
+  current_palette = ForestColors_p;
+  //current_palette = RainbowColors_p;
 
-  leds[led_index] = ColorFromPalette(current_palette, color_index, BRIGHTNESS, LINEARBLEND);
+  leds[led_index] = ColorFromPalette(current_palette, color_index, brightness, LINEARBLEND);
   FastLED.show();
   FastLED.delay(LOOP_TIME);
 
   led_index++;
   if (led_index == NUM_LEDS) led_index = OUTER_START;
+
+  next_color_index = color_index + PALETTE_JUMP;
+  if (next_color_index < color_index)
+  {
+    // we had a roll-over.  Gonna use that to toggle the inner ring.
+    if (inner_toggle)
+    {
+      fill_inner(CRGB::Black);
+    }
+    else
+    {
+      fill_inner(CRGB::Gray);
+    }
+    
+    inner_toggle = !inner_toggle;
+  }
   
-  color_index = color_index + PALETTE_JUMP;  // gonna use the auto 255 rollover here...no bounds checking.
-  
+  color_index = next_color_index;  
+
 }
