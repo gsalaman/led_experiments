@@ -21,6 +21,30 @@ CRGB leds[NUM_LEDS];
 #define LAST_INNER (NUM_INNER - 1)
 #define LAST_OUTER (NUM_LEDS - 1)
 
+CRGBPalette16 my_palette =
+{
+  CRGB::Blue,
+  CRGB::Red,
+  CRGB::Yellow,
+  CRGB::Blue,
+
+  CRGB::Blue,
+  CRGB::Red,
+  CRGB::Yellow,
+  CRGB::Blue,
+
+  CRGB::Blue,
+  CRGB::Red,
+  CRGB::Yellow,
+  CRGB::Blue,
+  
+  CRGB::Blue,
+  CRGB::Red,
+  CRGB::Yellow,
+  CRGB::Blue,
+
+};
+
 
 /*===============================================================================
  * Function:  fill_all
@@ -142,32 +166,51 @@ void rotate_outer_counter_clockwise( void )
     
 }  // end of rotate_down_helper
 
+/*===============================================================================
+ * Function:  fill_with_palette
+ * 
+ * Fills, using palette, from start_led to stop_led.
+ */
+void fill_with_palette( int start_led, int stop_led, uint8_t brightness, CRGBPalette16 palette, int palette_start, int palette_step )
+{
+  int i;
+  int palette_index;
+
+  palette_index = palette_start;
+
+  for (i = start_led; i <= stop_led; i++)
+  {
+    leds[i] = ColorFromPalette(palette, palette_index, brightness, LINEARBLEND);
+    palette_index = palette_index + palette_step;
+  }
+
+}
+
+/*===============================================================================
+ * Function:  make_outer_bump
+ * 
+ */
+
+
 void setup()
 {
 
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
     FastLED.setBrightness(  BRIGHTNESS );
     
-    // fill the entire array with blue.
-    fill_all(CRGB::Blue);
+    // clear the array, just in case.
+    fill_all(CRGB::Black);
     FastLED.show();
 
     FastLED.delay(1000);
-
-    leds[0] = CRGB::Red;
-    leds[16]= CRGB::Red;
     
-    FastLED.delay(1000);
-
+    fill_with_palette(OUTER_START, LAST_OUTER, 100, my_palette, 0, 1);
+    FastLED.show();
 }
 
 #define LOOP_TIME 100
 void loop()
 {
 
-    rotate_inner_clockwise();
-    rotate_outer_clockwise();
-    
-    FastLED.show();
     FastLED.delay(LOOP_TIME);
 }
