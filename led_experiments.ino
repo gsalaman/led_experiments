@@ -11,7 +11,7 @@
 #define NUM_LEDS    40
 CRGB leds[NUM_LEDS];
 
-#define BRIGHTNESS          40
+#define BRIGHTNESS  30
 
 // a bunch of helpful defines
 #define INNER_START 0
@@ -21,7 +21,8 @@ CRGB leds[NUM_LEDS];
 #define LAST_INNER (NUM_INNER - 1)
 #define LAST_OUTER (NUM_LEDS - 1)
 
-CRGBPalette16 my_palette =
+//CRGBPalette16 my_palette =
+const TProgmemPalette16 my_palette PROGMEM =
 {
   CRGB::Blue,
   CRGB::Red,
@@ -187,10 +188,53 @@ void fill_with_palette( int start_led, int stop_led, uint8_t brightness, CRGBPal
 }
 
 /*===============================================================================
- * Function:  make_outer_bump
+ * Function:  make_bump
+ * 
+ * bump size is the number of leds on either side of the bump led...so bump size of 2
+ *   gives a TOTAL LED size of 5...one in the center, and 2 on either side.
  * 
  */
+void make_bump(int center_led, int bump_size, CRGB background, CRGB bump)
+{
+  int start_led_index;
+  
+  // first cut here will treat rollovers as errors...do nothing.  
+  // next cut can do modulo math to make the right thing happen.
+  // note I'm also not dealing with the inner/outer loop rollover.
+  if (bump_size < 1) return;
+  if (center_led - bump_size < 0) return;
+  if (center_led + bump_size > NUM_LEDS) return;
 
+  start_led_index = center_led - bump_size;
+  fill_gradient_RGB(&(leds[start_led_index]), bump_size + 1, background, bump);
+  fill_gradient_RGB(&(leds[center_led]), bump_size+1, bump, background);
+  
+}
+
+/*===============================================================================
+ * Function:  make_inner_bump
+ */
+void make_inner_bump(int bump_size, CRGB background, CRGB bump)
+{
+  if (bump_size < 1) bump_size = 1;
+  if (bump_size > 7) bump_size = 7;
+  
+  fill_inner(background);
+  make_bump(8, bump_size, background, bump);
+}
+
+
+/*===============================================================================
+ * Function:  make_outer_bump
+ */
+void make_outer_bump(int bump_size, CRGB background, CRGB bump)
+{
+  if (bump_size < 1) bump_size = 1;
+  if (bump_size > 11) bump_size = 11;
+  
+  fill_outer(background);
+  make_bump(28, bump_size, background, bump);
+}
 
 void setup()
 {
@@ -204,13 +248,25 @@ void setup()
 
     FastLED.delay(1000);
     
-    fill_with_palette(OUTER_START, LAST_OUTER, 100, my_palette, 0, 1);
-    FastLED.show();
+    // fill_with_palette(OUTER_START, LAST_OUTER, 100, my_palette, 0, 2);
+    // FastLED.show();
+    // FastLed.delay(1000);
+
+    CRGB red = CRGB::Red;
+    CRGB blue = CRGB::Blue;
+    make_outer_bump(4, blue, red);
+    make_inner_bump(3, blue, red);
+
+    
 }
 
 #define LOOP_TIME 100
 void loop()
 {
+    rotate_inner_clockwise();
+    rotate_outer_clockwise();
 
+    FastLED.show();
     FastLED.delay(LOOP_TIME);
+
 }
