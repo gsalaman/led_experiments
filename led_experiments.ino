@@ -293,6 +293,8 @@ void make_outer_counter_clockwise_streak(int streak_size, CRGB background, CRGB 
 void setup()
 {
 
+    Serial.begin(9600);
+    
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
     FastLED.setBrightness(  BRIGHTNESS );
     
@@ -308,17 +310,73 @@ void setup()
 
     CRGB red = CRGB::Red;
     CRGB blue = CRGB::Blue;
-    make_outer_counter_clockwise_streak(10, blue, red);
-    make_inner_counter_clockwise_streak(8, blue, red);
+    make_outer_clockwise_streak(8, blue, red);
+    make_inner_bump(3, blue, red);
 }
 
-#define LOOP_TIME 100
+
+// indexed by inner position...gives outer index where the leds are
+// considered "touching".  Note the 3/2 ratio, so we've got some rounding.
+int align_pos[] = 
+{
+  0,  // I 0
+  2,  // I 1
+  3,  // I 2
+  5,  // I 3,
+  6,  // I 4
+  8,  // I 5
+  9,  // I 6
+  11, // I 7
+  12, // I 8
+  14, // I 9
+  15, // I 10
+  17, // I 11
+  18, // I 12
+  20, // I 13
+  21, // I 14
+  23  // I 15
+};
+
+bool touching(int inner, int outer)
+{
+  if (align_pos[inner] == outer) return true;
+  else return false;    
+}
+
+#define LOOP_TIME   50
+#define TOUCH_DELAY 3
 void loop()
 {
-    rotate_inner_counter_clockwise();
-    rotate_outer_counter_clockwise();
+    static int outer_pos=7;
+    static int inner_pos=8;
+    static int touch_delay=0;
+    
+    rotate_outer_clockwise();
+    outer_pos++;
+    outer_pos = outer_pos % NUM_OUTER;
+ 
+    if (touch_delay == 0)
+    {
+      
+      if (touching(inner_pos, outer_pos))
+      {
+        rotate_inner_clockwise();
+        inner_pos++;
+        inner_pos = inner_pos % NUM_INNER;
+        touch_delay = 1;
+      }
+    }
+    else
+    {
+      touch_delay++;
+      if (touch_delay == TOUCH_DELAY) touch_delay = 0;
+    }
+
 
     FastLED.show();
+
+    //while (!Serial.available());               //wait for character...
+    //while (Serial.available()) Serial.read();  // and clear the buffer and move on...
     FastLED.delay(LOOP_TIME);
 
 }
