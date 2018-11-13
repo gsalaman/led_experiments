@@ -46,6 +46,24 @@ const TProgmemPalette16 my_palette PROGMEM =
 
 };
 
+// We're using loop_delay to time our patterns...the bigger the delay, the slower the pattern.
+#define DEFAULT_LOOP_TIME 60
+#define MIN_LOOP_DELAY 10
+#define MAX_LOOP_DELAY 150
+int loop_delay=DEFAULT_LOOP_TIME;
+
+typedef enum
+{
+  PATTERN_BLACK,
+  PATTERN_TICK,
+  PATTERN_SYNC_CLOCKWISE,
+  PATTERN_SYNC_COUNTER,
+  PATTERN_PULSE
+} pattern_type;
+
+pattern_type current_pattern;
+
+/*====== UTILITY FUNCTIONS =========*/
 
 /*===============================================================================
  * Function:  fill_all
@@ -290,30 +308,71 @@ void make_outer_counter_clockwise_streak(int streak_size, CRGB background, CRGB 
   fill_gradient_RGB(&(leds[OUTER_START]), streak_size, head, background); 
 }
 
-void setup()
+/****======  PRE-DEFINED PATTERNS ===========******/
+//  These have an init_ function to set up the desired pattern, 
+//  and a move_function that will be called in the main loop.
+
+void init_sync_clockwise( void )
 {
+  int i;
+  make_outer_clockwise_streak(10, CRGB::Green, CRGB::Red);
+  make_inner_clockwise_streak(6, CRGB::Green, CRGB::Red); 
 
-    Serial.begin(9600);
-    
-    FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-    FastLED.setBrightness(  BRIGHTNESS );
-    
-    // clear the array, just in case.
-    fill_all(CRGB::Black);
-    FastLED.show();
-
-    FastLED.delay(1000);
-    
-    // fill_with_palette(OUTER_START, LAST_OUTER, 100, my_palette, 0, 2);
-    // FastLED.show();
-    // FastLed.delay(1000);
-
-    CRGB red = CRGB::Red;
-    CRGB blue = CRGB::Blue;
-    make_outer_clockwise_streak(8, blue, red);
-    make_inner_bump(3, blue, red);
+  // for those streak sizes, the inner needs to rotate 6 spots to be aligned with the outer.
+  for (i=0;i<6;i++) rotate_inner_clockwise();
+  
+  current_pattern = PATTERN_SYNC_CLOCKWISE; 
 }
 
+void move_sync_clockwise( void )
+{
+  static int phase=0;
+
+  // In order to sync the inner and outer lanes, we need to preserve the 3:2 ratio. 
+  // common denominator stuff...that means 6 phases.  
+  if (phase % 2 == 0) rotate_outer_clockwise();
+  if (phase % 3 == 0) rotate_inner_clockwise();
+
+  phase = phase + 1;
+  phase = phase % 6;
+  
+}
+
+void init_sync_counter( void )
+{
+  int i;
+  make_outer_counter_clockwise_streak(12, CRGB::Red, CRGB::Yellow);
+  make_inner_counter_clockwise_streak(8, CRGB::Red, CRGB::Yellow); 
+
+  // rotate the inner streak to line up with the outer streak
+  for (i=0;i<8;i++) rotate_inner_counter_clockwise();
+  
+  current_pattern = PATTERN_SYNC_COUNTER;
+  
+}
+
+void move_sync_counter( void )
+{
+  static int phase=0;
+
+  // In order to sync the inner and outer lanes, we need to preserve the 3:2 ratio. 
+  // common denominator stuff...that means 6 phases.  
+  if (phase % 2 == 0) rotate_outer_counter_clockwise();
+  if (phase % 3 == 0) rotate_inner_counter_clockwise();
+
+  phase = phase + 1;
+  phase = phase % 6;
+  
+}
+
+void init_tick_pattern( void )
+{
+  make_outer_clockwise_streak(8, CRGB::Blue, CRGB::Red);
+  make_inner_bump(3, CRGB::Blue, CRGB::Red);
+  current_pattern = PATTERN_TICK;
+}
+
+#define TOUCH_DELAY 3
 
 // indexed by inner position...gives outer index where the leds are
 // considered "touching".  Note the 3/2 ratio, so we've got some rounding.
@@ -343,10 +402,9 @@ bool touching(int inner, int outer)
   else return false;    
 }
 
-#define LOOP_TIME   50
-#define TOUCH_DELAY 3
-void loop()
+void move_tick_pattern( void )
 {
+    // Doh!  with these being static, we get "unaligned" whenever we re-select the tick pattern.
     static int outer_pos=7;
     static int inner_pos=8;
     static int touch_delay=0;
@@ -371,12 +429,179 @@ void loop()
       touch_delay++;
       if (touch_delay == TOUCH_DELAY) touch_delay = 0;
     }
+}
+
+void blackout( void )
+{
+  fill_all(CRGB::Black);
+  current_pattern = PATTERN_BLACK;
+}
+
+void init_pulse( void )
+{
+  CRGB color;
+
+  color = ColorFromPalette(my_palette, 0);
+  fill_all(color);
+  current_pattern = PATTERN_PULSE;
+}
+
+#define PULSE_DELAY 50
+void move_pulse( void )
+{
+  static uint8_t index=0;
+  static int delay=0;
+  CRGB color;
+  
+#if 0
+  // the pulse pattern goes MUCH faster than all the others
+  if (delay < PULSE_DELAY)
+  {
+    delay++;
+    return;
+  }
+  else
+  {
+    delay = 0;
+  }
+#endif
+
+  color = ColorFromPalette(my_palette, index);
+
+  fill_all(color);
+
+  index++;
+}
+
+void move_pattern( void )
+{
+  switch (current_pattern)
+  {
+    case PATTERN_TICK:  
+      move_tick_pattern();  
+    break;
+
+    case PATTERN_SYNC_CLOCKWISE:
+      move_sync_clockwise();
+    break;
+    
+    case PATTERN_SYNC_COUNTER:
+      move_sync_counter();
+    break;
+
+    case PATTERN_PULSE:
+      move_pulse();
+    break;
+
+  }
+}
+void print_help( void )
+{
+  Serial.println("Commands:");
+  Serial.println("+ to speed up");
+  Serial.println("- to slow down");
+  Serial.println("1 selects tick pattern");
+  Serial.println("2 selects clockwise sync");
+  Serial.println("3 selects counter-clockwise sync");
+  Serial.println("4 pulses colors");
+  Serial.println("0 blacks out display");
+}
+
+void user_input( void )
+{
+  char command;
+  if (Serial.available())
+  {
+    command = Serial.read();
+
+    switch (command)
+    {
+      case '+':
+        // speed up
+        if (loop_delay > MIN_LOOP_DELAY) 
+        {
+          loop_delay = loop_delay - 10;
+          Serial.print("delay = ");
+          Serial.println(loop_delay);
+        }
+      break;
+
+      case '-':
+        // slow down
+        if (loop_delay < MAX_LOOP_DELAY)
+        {
+          loop_delay = loop_delay + 10;
+          Serial.print("delay = ");
+          Serial.println(loop_delay);
+        }
+      break;
+
+      case '1':
+        init_tick_pattern();
+        Serial.println("Tick pattern chosen");
+      break;
+
+      case '2':
+        init_sync_clockwise();
+        Serial.println("Sync clockwise chosen");
+      break;
+
+      case '3':
+        init_sync_counter();
+        Serial.println("Sync counter-clockwise chosen");
+      break;
+
+      case '4':
+         init_pulse();
+      break;
+
+      case '0':
+         blackout();
+      break;
+      
+
+      case '\n':
+        //do nothing with returns
+      break;
+
+      default:
+        print_help();
+        
+    }
+  }
+}
+
+void setup()
+{
+
+    Serial.begin(9600);
+    
+    FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+    FastLED.setBrightness(  BRIGHTNESS );
+    
+    // clear the array, just in case.
+    fill_all(CRGB::Black);
+    FastLED.show();
+
+    FastLED.delay(1000);
+
+    print_help();
+    
+    init_tick_pattern();
+}
 
 
+
+
+void loop()
+{
+    user_input();
+    move_pattern();
+    
     FastLED.show();
 
     //while (!Serial.available());               //wait for character...
     //while (Serial.available()) Serial.read();  // and clear the buffer and move on...
-    FastLED.delay(LOOP_TIME);
+    FastLED.delay(loop_delay);
 
 }
