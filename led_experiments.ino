@@ -23,6 +23,7 @@
 #include <SoftwareSerial.h>
 #include <FastLED.h>
 
+SoftwareSerial XBee(2,3);
 
 // Hardware definitions for our LED strip.
 #define LED_PIN    6
@@ -581,7 +582,7 @@ void print_help( void )
   Serial.println("0 blacks out display");
 }
 
-void user_input( void )
+void serial_user_input( void )
 {
   char command;
   if (Serial.available())
@@ -627,14 +628,17 @@ void user_input( void )
 
       case '4':
          init_pulse();
+         Serial.println("Pulse mode chosen");
       break;
 
       case '5':
          init_opposites();
+         Serial.println("opposites mode chosen");
       break;
       
       case '0':
          blackout();
+         Serial.println("Blackout!!!");
       break;
 
       case '\n':
@@ -648,10 +652,122 @@ void user_input( void )
   }
 }
 
+void xbee_user_input( void )
+{
+  char command;
+
+  // the controller will resend commands to the receiver...in our application, that will
+  // re-initialize the given motion pattern, which makes them "jump".  I'm gonna start by
+  // *NOT* doing the init if we're already in that mode. 
+  
+  if (XBee.available())
+  {
+    command = XBee.read();
+  
+    switch (command)
+    {
+      case '1':
+        if (current_pattern != PATTERN_TICK)
+        {
+          init_tick_pattern();
+          Serial.println("Tick pattern chosen");
+        }
+      break;
+
+      case '2':
+        if (current_pattern != PATTERN_SYNC_CLOCKWISE)
+        {
+          init_sync_clockwise();
+          Serial.println("Sync clockwise chosen");
+        }
+      break;
+
+      case '3':
+        if (current_pattern != PATTERN_SYNC_COUNTER)
+        {
+          init_sync_counter();
+          Serial.println("Sync counter-clockwise chosen");
+        }
+      break;
+
+      case '4':
+         if (current_pattern != PATTERN_PULSE)
+         {
+           init_pulse();
+           Serial.println("Pulse mode chosen");
+         }
+        break;
+
+      case '5':
+         if (current_pattern != PATTERN_OPPOSITES)
+         {
+           init_opposites();
+           Serial.println("Opposites mode chosen");
+         }
+      break;
+      
+      case '0':
+         blackout();
+      break;
+
+      case 'A':
+          loop_delay = 200;
+          Serial.println("delay 200");
+      break;
+
+      case 'B':
+          loop_delay = 175;
+          Serial.println("delay 175");
+      break;
+
+      case 'C':
+          loop_delay = 150;
+          Serial.println("delay 150");
+      break;
+
+      case 'D':
+          loop_delay = 125;
+          Serial.println("delay 125");
+      break;
+
+      case 'E':
+          loop_delay = 100;
+          Serial.println("delay 100");
+      break;
+
+      case 'F':
+          loop_delay = 70;
+          Serial.println("delay 70");
+      break;
+
+      case 'G':
+          loop_delay = 40;
+          Serial.println("delay 40");
+      break;
+
+      case 'H':
+          loop_delay = 20;
+          Serial.println("delay 20");
+      break;
+
+      case 'I':
+          loop_delay = 10;
+          Serial.println("delay 10");
+      break;
+
+      case 'J':
+          loop_delay = 5;
+          Serial.println("delay 5");
+      break;
+    }
+  }
+}
+
 void setup()
 {
 
     Serial.begin(9600);
+    XBee.begin(9600);
     
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
     FastLED.setBrightness(  BRIGHTNESS );
@@ -669,7 +785,8 @@ void setup()
 
 void loop()
 {
-    user_input();
+    xbee_user_input();
+    serial_user_input();
     move_pattern();
     
     FastLED.show();
