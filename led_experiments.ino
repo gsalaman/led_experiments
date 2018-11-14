@@ -1,25 +1,50 @@
 /*===========================================================
- * Implementing helper functions.
+ * A random collection of LED expirements.
+ * 
+ * Layering:
+ * At the top level, we've defined a collection of pre-set patterns.
+ * The user is able to specify which pattern to display, and at which speed.
+ * This can be done either via the serial port or via Jeff's cool XBee remote.
+ * 
+ * One level down from that are the pattern definitions themselves.  Each pattern
+ * has an associated init_ and move_ function.  The init_ function sets up the led array;
+ * the move_ function is used to manipulate that array to cause "motion".  Note that our main
+ * loop will call the appropriate move_ function for the selected pattern. 
+ * 
+ * The next level down are the user pattern definition functions.  These allow the user to fill
+ * a given ring with a given color, create streaks, and create bumps.  There are also motion helpers
+ * to rotate leds in either direction.
+ * 
+ * The next level down are "helper" functions...these do array math to do the associated rotates.
+ * 
+ * Finally, this is all built on the FastLED library that does the actual LED manipulations.
  */
 
 #include <SoftwareSerial.h>
 #include <FastLED.h>
 
+
+// Hardware definitions for our LED strip.
 #define LED_PIN    6
 #define LED_TYPE    WS2812
 #define COLOR_ORDER GRB
-#define NUM_LEDS    40
-CRGB leds[NUM_LEDS];
 
 #define BRIGHTNESS  30
 
-// a bunch of helpful defines
+// Our LED Matrix:
+// 16 LEDs in the inner loop, going couter-clockwise.
+// 24 LEDs in the outer loop, going clockwise.
+// These are helpful defines for where the loops start and end.
+#define NUM_LEDS    40
 #define INNER_START 0
 #define NUM_INNER  16
 #define OUTER_START 16
 #define NUM_OUTER 24
 #define LAST_INNER (NUM_INNER - 1)
 #define LAST_OUTER (NUM_LEDS - 1)
+
+// Matrix of LED values, used by FastLED to do the displays.
+CRGB leds[NUM_LEDS];
 
 //CRGBPalette16 my_palette =
 const TProgmemPalette16 my_palette PROGMEM =
@@ -52,42 +77,20 @@ const TProgmemPalette16 my_palette PROGMEM =
 #define MAX_LOOP_DELAY 150
 int loop_delay=DEFAULT_LOOP_TIME;
 
+// These are the pre-defined patterns.  
 typedef enum
 {
   PATTERN_BLACK,
   PATTERN_TICK,
   PATTERN_SYNC_CLOCKWISE,
   PATTERN_SYNC_COUNTER,
-  PATTERN_PULSE
+  PATTERN_PULSE,
+  PATTERN_OPPOSITES
 } pattern_type;
 
 pattern_type current_pattern;
 
-/*====== UTILITY FUNCTIONS =========*/
-
-/*===============================================================================
- * Function:  fill_all
- */
-void fill_all(CRGB color)
-{
-    fill_solid(leds, NUM_LEDS, color);
-}
-
-/*===============================================================================
- * Function:  fill_inner
- */
-void fill_inner(CRGB color)
-{
-    fill_solid(leds, NUM_INNER, color);
-}
-
-/*===============================================================================
- * Function:  fill_outer
- */
-void fill_outer(CRGB color)
-{
-    fill_solid(&(leds[OUTER_START]), NUM_OUTER, color);
-}
+/*================ HELPER FUNCTIONS =============================================*/
 
 /*===============================================================================
  * Function:  rotate_down_helper
@@ -147,14 +150,40 @@ void rotate_up_helper( CRGB *start_led, int num )
     
 }  // end of rotate_down_helper
 
+
+/*================= USER PATTERN DEFINITION FUNCTIONS ======================*/
+
+/*===============================================================================
+ * Function:  fill_all
+ */
+void fill_all(CRGB color)
+{
+    fill_solid(leds, NUM_LEDS, color);
+}
+
+/*===============================================================================
+ * Function:  fill_inner
+ */
+void fill_inner(CRGB color)
+{
+    fill_solid(leds, NUM_INNER, color);
+}
+
+/*===============================================================================
+ * Function:  fill_outer
+ */
+void fill_outer(CRGB color)
+{
+    fill_solid(&(leds[OUTER_START]), NUM_OUTER, color);
+}
+
 /*===============================================================================
  * Function:  rotate_inner_clockwise
  */
 void rotate_inner_clockwise( void )
 {
     rotate_down_helper(leds, NUM_INNER);
-    
-}  // end of rotate_down_helper
+}  
 
 
 /*===============================================================================
@@ -163,26 +192,22 @@ void rotate_inner_clockwise( void )
 void rotate_inner_counter_clockwise( void )
 {
     rotate_up_helper(leds, NUM_INNER);
-    
-}  // end of rotate_down_helper
+}  
 
 /*===============================================================================
  * Function:  rotate_outer_clockwise
  */
 void rotate_outer_clockwise( void )
 {
-    rotate_up_helper(&(leds[OUTER_START]), NUM_OUTER);
-    
+    rotate_up_helper(&(leds[OUTER_START]), NUM_OUTER);  
 }  // end of rotate_down_helper
     
-
 /*===============================================================================
  * Function:  rotate_outer_counter_clockwise
  */
 void rotate_outer_counter_clockwise( void )
 {
     rotate_down_helper(&(leds[OUTER_START]), NUM_OUTER);
-    
 }  // end of rotate_down_helper
 
 /*===============================================================================
@@ -238,9 +263,10 @@ void make_inner_bump(int bump_size, CRGB background, CRGB bump)
   if (bump_size > 7) bump_size = 7;
   
   fill_inner(background);
+
+  // want the bump centered in the inner array, hence the 8
   make_bump(8, bump_size, background, bump);
 }
-
 
 /*===============================================================================
  * Function:  make_outer_bump
@@ -251,6 +277,8 @@ void make_outer_bump(int bump_size, CRGB background, CRGB bump)
   if (bump_size > 11) bump_size = 11;
   
   fill_outer(background);
+
+  // want the bump centered in the outer array, hence the 28
   make_bump(28, bump_size, background, bump);
 }
 
@@ -308,10 +336,14 @@ void make_outer_counter_clockwise_streak(int streak_size, CRGB background, CRGB 
   fill_gradient_RGB(&(leds[OUTER_START]), streak_size, head, background); 
 }
 
-/****======  PRE-DEFINED PATTERNS ===========******/
+/****=======================  PRE-DEFINED PATTERNS ============================******/
 //  These have an init_ function to set up the desired pattern, 
 //  and a move_function that will be called in the main loop.
 
+/*********************************************
+ * Pattern:  PATTERN_SYNC_CLOCKWISE
+ * An inner and outer streak that move clockwise, synchronized.
+ */
 void init_sync_clockwise( void )
 {
   int i;
@@ -335,9 +367,12 @@ void move_sync_clockwise( void )
 
   phase = phase + 1;
   phase = phase % 6;
-  
 }
 
+/*********************************************
+ * Pattern:  PATTERN_SYNC_COUNTER
+ * An inner and outer streak that move counter-clockwise, synchronized.
+ */
 void init_sync_counter( void )
 {
   int i;
@@ -365,17 +400,83 @@ void move_sync_counter( void )
   
 }
 
-void init_tick_pattern( void )
+/*********************************************
+ * Pattern:  PATTERN_BLACK
+ * All LEDs go off.  
+ * Note that we don't need a move function for this...there's nothing to move.  :)
+ */
+void blackout( void )
 {
-  make_outer_clockwise_streak(8, CRGB::Blue, CRGB::Red);
-  make_inner_bump(3, CRGB::Blue, CRGB::Red);
-  current_pattern = PATTERN_TICK;
+  fill_all(CRGB::Black);
+  current_pattern = PATTERN_BLACK;
 }
 
+/*********************************************
+ * Pattern:  PATTERN_PULSE
+ * This pattern has all LEDs with the same color, but pulses
+ * that color through our pre-defined palette.
+ */
+
+void init_pulse( void )
+{
+  CRGB color;
+
+  color = ColorFromPalette(my_palette, 0);
+  fill_all(color);
+  current_pattern = PATTERN_PULSE;
+}
+
+void move_pulse( void )
+{
+  static uint8_t index=0;
+  CRGB color;
+  
+  color = ColorFromPalette(my_palette, index);
+
+  fill_all(color);
+
+  index++;
+}
+
+/*********************************************
+ * Pattern:  PATTERN_OPPOSITES
+ * This pattern creates a bump on the outside and a streak on the inside...both 
+ * of which move in opposite directions.
+ */
+void init_opposites( void )
+{
+    current_pattern = PATTERN_OPPOSITES;
+    make_outer_bump(6, CRGB::Blue, CRGB::Yellow);
+    make_inner_clockwise_streak(4, CRGB::Blue, CRGB::Yellow);
+}
+
+void move_opposites( void )
+{
+    rotate_inner_clockwise();
+    rotate_outer_counter_clockwise();  
+}
+/*********************************************
+ * Pattern:  PATTERN_TICK
+ * The outer ring has a streak that moves clockwise.
+ * The inner ring has a bump.
+ * Whenever the outer ring "touches" the inner bump,
+ * it pushes (or "ticks") it over by one.
+ */
+
+// To make all this happen, we need to keep track of which "inner index" and
+// "outer index" our rings are on. 
+int outer_pos;
+int inner_pos;
+
+// one other fun thing...if we don't "wait" after pushing the inner ring to push it again,
+// our rings end up in sync.  
 #define TOUCH_DELAY 3
 
 // indexed by inner position...gives outer index where the leds are
 // considered "touching".  Note the 3/2 ratio, so we've got some rounding.
+// Note that for this array, it's NOT the absolute LED position...it's the
+// relative position around the circle.  Also note that this can be used in
+// either the clockwise or counter clockwise direction.
 int align_pos[] = 
 {
   0,  // I 0
@@ -402,11 +503,19 @@ bool touching(int inner, int outer)
   else return false;    
 }
 
+void init_tick_pattern( void )
+{
+  make_outer_clockwise_streak(8, CRGB::Blue, CRGB::Red);
+  make_inner_bump(3, CRGB::Blue, CRGB::Red);
+  current_pattern = PATTERN_TICK;
+  
+  inner_pos = 8;
+  outer_pos = 7;
+  
+}
+
 void move_tick_pattern( void )
 {
-    // Doh!  with these being static, we get "unaligned" whenever we re-select the tick pattern.
-    static int outer_pos=7;
-    static int inner_pos=8;
     static int touch_delay=0;
     
     rotate_outer_clockwise();
@@ -431,48 +540,7 @@ void move_tick_pattern( void )
     }
 }
 
-void blackout( void )
-{
-  fill_all(CRGB::Black);
-  current_pattern = PATTERN_BLACK;
-}
-
-void init_pulse( void )
-{
-  CRGB color;
-
-  color = ColorFromPalette(my_palette, 0);
-  fill_all(color);
-  current_pattern = PATTERN_PULSE;
-}
-
-#define PULSE_DELAY 50
-void move_pulse( void )
-{
-  static uint8_t index=0;
-  static int delay=0;
-  CRGB color;
-  
-#if 0
-  // the pulse pattern goes MUCH faster than all the others
-  if (delay < PULSE_DELAY)
-  {
-    delay++;
-    return;
-  }
-  else
-  {
-    delay = 0;
-  }
-#endif
-
-  color = ColorFromPalette(my_palette, index);
-
-  fill_all(color);
-
-  index++;
-}
-
+/*===================  MAIN FUNCTIONS ==============================*/
 void move_pattern( void )
 {
   switch (current_pattern)
@@ -493,8 +561,13 @@ void move_pattern( void )
       move_pulse();
     break;
 
+    case PATTERN_OPPOSITES:
+      move_opposites();
+    break;
+
   }
 }
+
 void print_help( void )
 {
   Serial.println("Commands:");
@@ -504,6 +577,7 @@ void print_help( void )
   Serial.println("2 selects clockwise sync");
   Serial.println("3 selects counter-clockwise sync");
   Serial.println("4 pulses colors");
+  Serial.println("5 moves in opposite directions");
   Serial.println("0 blacks out display");
 }
 
@@ -555,10 +629,13 @@ void user_input( void )
          init_pulse();
       break;
 
+      case '5':
+         init_opposites();
+      break;
+      
       case '0':
          blackout();
       break;
-      
 
       case '\n':
         //do nothing with returns
@@ -589,9 +666,6 @@ void setup()
     
     init_tick_pattern();
 }
-
-
-
 
 void loop()
 {
