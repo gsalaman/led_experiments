@@ -627,14 +627,17 @@ void user_input( void )
 
       case '4':
          init_pulse();
+         Serial.println("Pulse mode chosen");
       break;
 
       case '5':
          init_opposites();
+         Serial.println("Opposites mode chosen");
       break;
       
       case '0':
          blackout();
+         Serial.println("BLACKOUT!!!");
       break;
 
       case '\n':
