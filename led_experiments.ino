@@ -571,6 +571,12 @@ void move_pattern( void )
 
 void print_help( void )
 {
+  unsigned long start_time;
+  unsigned long end_time;
+  unsigned long delta_time;
+
+  start_time = millis();
+  
   Serial.println("Commands:");
   Serial.println("+ to speed up");
   Serial.println("- to slow down");
@@ -580,12 +586,18 @@ void print_help( void )
   Serial.println("4 pulses colors");
   Serial.println("5 moves in opposite directions");
   Serial.println("0 blacks out display");
+
+  end_time = millis();
+  delta_time = end_time - start_time;
+
+  Serial.print("----> TIME to print all that out: ");
+  Serial.println(delta_time);
 }
 
 void serial_user_input( void )
 {
   char command;
-  if (Serial.available())
+  while (Serial.available())
   {
     command = Serial.read();
 
@@ -660,7 +672,7 @@ void xbee_user_input( void )
   // re-initialize the given motion pattern, which makes them "jump".  I'm gonna start by
   // *NOT* doing the init if we're already in that mode. 
   
-  if (XBee.available())
+  while (XBee.available())
   {
     command = XBee.read();
   
@@ -708,6 +720,7 @@ void xbee_user_input( void )
       
       case '0':
          blackout();
+         Serial.println("Blackout!!!");
       break;
 
       case 'A':
@@ -784,15 +797,28 @@ void setup()
 }
 
 void loop()
-{
+{    
+    static unsigned long last_update_time=0;
+    unsigned long current_time;
+
     xbee_user_input();
     serial_user_input();
-    move_pattern();
-    
+
+
+    // Removed the embedded waits...instead I'm gonna just use time, but always update.
+
+    current_time = millis();
+    if (current_time > last_update_time + loop_delay)
+    {
+       move_pattern();
+       last_update_time = current_time;
+    }
+
     FastLED.show();
 
+    
     //while (!Serial.available());               //wait for character...
     //while (Serial.available()) Serial.read();  // and clear the buffer and move on...
-    FastLED.delay(loop_delay);
+    //FastLED.delay(loop_delay);
 
 }
