@@ -85,7 +85,8 @@ typedef enum
   PATTERN_SYNC_CLOCKWISE,
   PATTERN_SYNC_COUNTER,
   PATTERN_PULSE,
-  PATTERN_OPPOSITES
+  PATTERN_OPPOSITES, 
+  PATTERN_TEST
 } pattern_type;
 
 pattern_type current_pattern;
@@ -150,6 +151,57 @@ void rotate_up_helper( CRGB *start_led, int num )
     
 }  // end of rotate_down_helper
 
+/*===============================================================================
+ * Function:  draw_streak_helper
+ *
+ * In some instances, we want to draw a streak spanning the roll-over point.
+ * This helper function does that.
+ * Note this is heavier weight than the simple "make clockwise/counter-clockwise streak"
+ * functions...and it doesn't fill in the background...it *JUST* updates the streak pixels.
+ */
+void draw_streak_helper( CRGB *ring_start, int ring_size, int streak_start_index, int streak_size, CRGB start_color, CRGB end_color)
+{
+   CRGB temp_led[NUM_OUTER];
+   int  copy_index;
+   int  num_copied=0;
+
+   // a given streak may span our roll-over point.  
+   // Exammple:  an inner streak of length 4, starting at led index 14 should light up
+   // leds 14, 15, 0, and 1...but if we just use fill gradient from 14, it lights up
+   // 14, 15, 16, and 17...two from the inner loop and two from the outer.
+   //
+   // One way to deal with this is to break the streak into two separate gradients..but then you need
+   // to do color interpolation.   Instead, I'm going to have a temporary led array that *doesn't* 
+   // roll over to do the fill_gradient (which will do the full interpolation for me), and then
+   // copy the leds over to the right spots in our ring, dealing with the roll-over.
+
+   // Start with some error checks...
+   if (streak_size > NUM_OUTER) streak_size = NUM_OUTER;
+
+   // make our gradient in the temp array.
+   fill_gradient_RGB(temp_led, streak_size, start_color, end_color);
+
+   // start by copying led up to the roll-over point
+   copy_index = streak_start_index;
+   while ((copy_index < ring_size) && (num_copied < streak_size))
+   {
+      ring_start[copy_index] = temp_led[num_copied];
+      num_copied++;
+      copy_index++;
+   }
+
+   // from here, we just rolled over...so start from the "zeroth" led.
+   copy_index = 0;   
+
+   // ...and copy the rest of the streak
+   while (num_copied < streak_size)
+   {
+      ring_start[copy_index] = temp_led[num_copied];
+      num_copied++;
+      copy_index++;
+   }
+  
+}
 
 /*================= USER PATTERN DEFINITION FUNCTIONS ======================*/
 
@@ -334,6 +386,23 @@ void make_outer_counter_clockwise_streak(int streak_size, CRGB background, CRGB 
   
   // since outer indexes go counter-clockwise, we need to start at the head, and build to the tail
   fill_gradient_RGB(&(leds[OUTER_START]), streak_size, head, background); 
+}
+/*===================================================================================
+ * Function: draw_inner_clockwise_streak
+ * The draw_ functions are different from the make_ functions;
+ *   - They don't fill in the background
+ *   - You specify the starting location
+ *   - They are more processor and memory intensive.
+ *  What does this mean?  Use the make_ functions if you can.  If not, use draw_.
+ *  
+ */
+void draw_inner_clockwise_streak(int start_index, int streak_size, CRGB head, CRGB tail)
+{
+   if (start_index < 0) start_index = 0;
+   if (start_index > LAST_INNER) start_index = LAST_INNER;
+   if (streak_size > NUM_INNER) streak_size = NUM_INNER;
+
+   draw_streak_helper(leds, NUM_INNER, start_index, streak_size, head, tail);
 }
 
 /****=======================  PRE-DEFINED PATTERNS ============================******/
@@ -540,6 +609,59 @@ void move_tick_pattern( void )
     }
 }
 
+/********************************************
+ * PATTERN:  test
+ */
+int test_index;
+
+void init_test( void )
+{
+  fill_all(CRGB::Black);
+  test_index = 0;
+  current_pattern = PATTERN_TEST;
+}
+
+#define TEST_PATTERN_TIME_INCREMENT 500
+void move_test( void )
+{
+  static unsigned long last_update_time=0;
+  unsigned long        current_time;
+  CRGB                 color;
+
+  if (test_index >= NUM_LEDS) return;
+
+  current_time = millis();
+  
+  // The test pattern is not affected by the loop delay setting.
+  if (current_time > last_update_time + TEST_PATTERN_TIME_INCREMENT)
+  {
+    // make the "zeroth" led red.
+    if ((test_index == INNER_START) || (test_index == OUTER_START))
+    {
+      color = CRGB::Red;
+    }
+    
+    // make the "first" led around the ring green.  This will show direction.
+    else if ((test_index == INNER_START + 1) || (test_index == OUTER_START + 1))
+    {
+      color = CRGB::Green;
+    }
+
+    // all the rest should be blue.
+    else
+    {
+      color = CRGB::Blue;
+    }
+
+    leds[test_index] = color;
+
+    last_update_time = current_time;
+    test_index++;
+    
+  }  // if it's time for an update.
+  
+}  // end of move_test
+
 /*===================  MAIN FUNCTIONS ==============================*/
 void move_pattern( void )
 {
@@ -565,6 +687,10 @@ void move_pattern( void )
       move_opposites();
     break;
 
+    case PATTERN_TEST:
+      move_test();
+    break;
+
   }
 }
 
@@ -578,6 +704,7 @@ void print_help( void )
   Serial.println("3 selects counter-clockwise sync");
   Serial.println("4 pulses colors");
   Serial.println("5 moves in opposite directions");
+  Serial.println("6 prints the test pattern");
   Serial.println("0 blacks out display");
 }
 
@@ -633,6 +760,11 @@ void user_input( void )
       case '5':
          init_opposites();
          Serial.println("Opposites mode chosen");
+      break;
+
+      case '6':
+          init_test();
+          Serial.println("Test pattern selected");
       break;
       
       case '0':
